@@ -13,6 +13,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI
 
+
 # Vector Store
 from langchain_chroma import Chroma
 
@@ -30,8 +31,9 @@ PERSIST_DIRECTORY = "./chroma_rh"
 EMBEDDING_MODEL = "BAAI/bge-m3"
 
 # Modelo de linguagem
-LLM_MODEL = "google/gemma-4-e2b"
-BASE_URL = "http://localhost:1235/v1"
+LLM_MODEL = "gemini-1.5-flash"
+BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+#API_KEY = "GEMINI_AULA_ALURA"
 
 ###############################################################
 ########### IMPORTAÇÃO E PROCESSAMENTO DE DOCUMENTOS ##########
@@ -150,9 +152,11 @@ def responder_pergunta(pergunta, vectorstore):
     # LLM
     llm = ChatOpenAI(
         base_url= BASE_URL,
-        api_key="lm_studio",
+        api_key = st.secrets["GEMINI_AULA_ALURA"],
         model=LLM_MODEL,
-        temperature=0
+        temperature=0,
+        timeout=60,
+        max_retries=1
     )
 
     # Recuperação inicial (top-k mais alto)
@@ -212,20 +216,15 @@ except Exception as e:
     st.error("Falha durante o diagnóstico")
     st.exception(e)
 
-st.write("Etapa 5: testando o modelo de linguagem...")
+st.title("Teste da API de linguagem")
 
-llm = ChatOpenAI(
-    base_url="http://localhost:1235/v1",
-    api_key="lm_studio",
-    model="google/gemma-4-e2b",
-    temperature=0,
-    timeout=15,
-    max_retries=0
-)
+try:
+    llm = criar_llm()
+    resposta = llm.invoke(
+        "Responda em português: conexão funcionando."
+    )
+    st.success("Conexão com a API estabelecida!")
+    st.write(resposta.content)
 
-resposta_teste = llm.invoke(
-    "Responda apenas: conexão funcionando."
-)
-
-st.success("Modelo respondeu!")
-st.write(resposta_teste.content)
+except Exception as e:
+    st.error(f"Falha na chamada da API: {e}")
