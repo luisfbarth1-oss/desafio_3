@@ -28,9 +28,9 @@ st.write("Etapa 1: aplicação iniciada")
 
 st.write("PDFs disponíveis:")
 for arquivo in [
-    "Aulas-politica_ferias.pdf",
-    "Aulas-politica_home_office.pdf",
-    "Aulas-codigo_conduta.pdf"
+    "politica_ferias.pdf",
+    "politica_home_office.pdf",
+    "codigo_conduta.pdf"
 ]:
     st.write(f"{arquivo}: {os.path.exists(arquivo)}")
 
