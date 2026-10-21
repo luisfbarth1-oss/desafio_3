@@ -31,7 +31,7 @@ PERSIST_DIRECTORY = "./chroma_rh"
 EMBEDDING_MODEL = "BAAI/bge-m3"
 
 # Modelo de linguagem
-LLM_MODEL = "gemini-1.5-flash"
+LLM_MODEL = "gemini-flash-latest"
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 #API_KEY = "GEMINI_AULA_ALURA"
 
