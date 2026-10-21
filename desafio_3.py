@@ -208,7 +208,24 @@ try:
         k=2
     )
     st.success(f"Documentos recuperados: {len(resultados)}")
-
 except Exception as e:
     st.error("Falha durante o diagnóstico")
     st.exception(e)
+
+st.write("Etapa 5: testando o modelo de linguagem...")
+
+llm = ChatOpenAI(
+    base_url="http://localhost:1235/v1",
+    api_key="lm_studio",
+    model="google/gemma-4-e2b",
+    temperature=0,
+    timeout=15,
+    max_retries=0
+)
+
+resposta_teste = llm.invoke(
+    "Responda apenas: conexão funcionando."
+)
+
+st.success("Modelo respondeu!")
+st.write(resposta_teste.content)
