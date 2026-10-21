@@ -42,9 +42,9 @@ def carregar_documentos():
     Carrega os PDFs de políticas internas de RH
     """
     caminhos = [
-        "Aulas-RAG/documentos/politica_ferias.pdf",
-        "Aulas-RAG/documentos/politica_home_office.pdf",
-        "Aulas-RAG/documentos/codigo_conduta.pdf"
+        "politica_ferias.pdf",
+        "politica_home_office.pdf",
+        "codigo_conduta.pdf"
     ]
 
     documentos = []
