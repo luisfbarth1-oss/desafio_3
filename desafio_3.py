@@ -218,6 +218,16 @@ except Exception as e:
 
 st.title("Teste da API de linguagem")
 
+def criar_llm():
+    llm = ChatOpenAI(
+        base_url= BASE_URL,
+        api_key = st.secrets["GEMINI_AULA_ALURA"],
+        model=LLM_MODEL,
+        temperature=0,
+        timeout=60,
+        max_retries=1
+    )
+
 try:
     llm = criar_llm()
     resposta = llm.invoke(
