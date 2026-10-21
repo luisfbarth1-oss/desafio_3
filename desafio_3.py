@@ -227,6 +227,7 @@ def criar_llm():
         timeout=60,
         max_retries=1
     )
+   return llm
 
 try:
     llm = criar_llm()
