@@ -189,54 +189,92 @@ def responder_pergunta(pergunta, vectorstore):
 ###############################################################
 ########### TESTE DE INICIALIZAÇÃO DO STREAMLIT ###############
 ###############################################################
-
-st.title("Agente de RH — Diagnóstico")
-
-try:
-    st.write("Etapa 1: carregando documentos...")
-    documentos = carregar_documentos()
-    st.success(f"Documentos carregados: {len(documentos)} páginas")
-
-    st.write("Etapa 2: gerando chunks...")
-    chunks = gerar_chunks(documentos)
-    chunks = enriquecer_chunks(chunks)
-    st.success(f"Chunks gerados: {len(chunks)}")
-
-    st.write("Etapa 3: criando banco vetorial...")
-    vectorstore = criar_vectorstore(chunks)
-    st.success("Banco vetorial criado!")
-
-    st.write("Etapa 4: testando recuperação...")
-    resultados = vectorstore.similarity_search(
-        "Como funciona a política de férias?",
-        k=2
-    )
-    st.success(f"Documentos recuperados: {len(resultados)}")
-except Exception as e:
-    st.error("Falha durante o diagnóstico")
-    st.exception(e)
-
-st.title("Teste da API de linguagem")
-
-def criar_llm():
-    llm = ChatOpenAI(
-        base_url= BASE_URL,
-        api_key = st.secrets["GEMINI_AULA_ALURA"],
-        model=LLM_MODEL,
-        temperature=0,
-        timeout=60,
-        max_retries=1
-    )
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = criar_vectorstore(chunks)
     
-    return llm
+st.title("Agente de RH — Diagnóstico")
+st.caption("Esclareça suas dúvidas sobre a empresa")
 
-try:
-    llm = criar_llm()
-    resposta = llm.invoke(
-        "Responda em português: conexão funcionando."
-    )
-    st.success("Conexão com a API estabelecida!")
-    st.write(resposta.content)
+# Inicializa o histórico
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    
+# Exibe as mensagens anteriores
+for mensagem in st.session_state.messages:
+    with st.chat_message(mensagem["role"]):
+        st.markdown(mensagem["content"])
 
-except Exception as e:
-    st.error(f"Falha na chamada da API: {e}")
+        fontes = mensagem.get("fontes", [])
+        if fontes:
+            with st.expander("Documentos utilizados"):
+                for i, fonte in enumerate(fontes, start=1):
+                    st.markdown(f"**Documento {i}**")
+                    st.write(f"Origem: {fonte['origem']}")
+
+                    if fonte["pagina"] is not None:
+                        st.write(f"Página: {fonte['pagina'] + 1}")
+
+                    st.write(fonte["conteudo"])
+                    st.divider()
+
+# Campo de entrada do chat
+pergunta = st.chat_input("Digite sua pergunta...")
+
+if pergunta:
+    # Exibe a mensagem do usuário
+    st.session_state.messages.append({
+        "role": "user",
+        "content": pergunta
+    })
+
+    with st.chat_message("user"):
+        st.markdown(pergunta)
+
+    # Verifica se o banco vetorial está disponível
+    if "vectorstore" not in st.session_state:
+        st.error("Carregue e processe os documentos primeiro.")
+    else:
+        with st.chat_message("assistant"):
+            try:
+                with st.spinner(
+                    "Consultando documentos e gerando resposta..."
+                ):
+                   resposta, contexto_final = responder_pergunta(
+                       pergunta,
+                       st.session_state.vectorstore
+                   )
+
+ # Converte os documentos para dados simples
+                fontes = []
+
+                for doc in contexto_final:
+                    fontes.append({
+                        "origem": doc.metadata.get(
+                            "source", "Não identificada"
+                        ),
+                        "pagina": doc.metadata.get("page"),
+                        "conteudo": doc.page_content[:500]
+                    })
+
+                st.markdown(resposta)
+
+                with st.expander("Documentos utilizados"):
+                    for i, fonte in enumerate(fontes, start=1):
+                        st.markdown(f"**Documento {i}**")
+                        st.write(f"Origem: {fonte['origem']}")
+
+                        if fonte["pagina"] is not None:
+                            st.write(f"Página: {fonte['pagina'] + 1}")
+
+                        st.write(fonte["conteudo"])
+                        st.divider()
+                        
+ # Armazena resposta e fontes
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": resposta,
+                    "fontes": fontes
+                })
+
+            except Exception as erro:
+                st.error(f"Erro ao consultar o RAG: {erro}")
