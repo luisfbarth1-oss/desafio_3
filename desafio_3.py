@@ -107,40 +107,58 @@ def criar_vectorstore(_chunks):
     )
     return vectorstore
 
+
 def rerank_documentos(pergunta, documentos, llm):
     """
-    Reordena os documentos recuperados com base na relevância
-    usando o próprio LLM (reranking semântico)
+    Reordena os documentos usando o LLM.
+    Se o reranking falhar, mantém a ordem original
+    fornecida pelo Chroma.
     """
     prompt_rerank = PromptTemplate(
         input_variables=["pergunta", "texto"],
-        template="""..."""
+        template="""...
+        """
     )
-    
+
     documentos_com_score = []
-    for doc in documentos:
-        score = llm.invoke(
-            prompt_rerank.format(
-                pergunta=pergunta,
-                texto=doc.page_content
-            )
-        ).content
 
+    for indice, doc in enumerate(documentos):
         try:
-            score = float(score)
-        except:
-            score = 0
-        
-        documentos_com_score.append((score, doc))
+            resultado = llm.invoke(
+                prompt_rerank.format(
+                    pergunta=pergunta,
+                    texto=doc.page_content
+                )
+            ).content
 
-    # Ordena do mais relevante para o menos relevante
+            score = float(resultado.strip())
+
+        except (ValueError, TypeError):
+            # Resposta de classificação inválida
+            score = 0
+
+        except Exception as erro:
+            # Falha de API: abandona o reranking e
+            # preserva a ordem original do Chroma.
+            st.warning(
+                "O reranking ficou indisponível. "
+                "Utilizando a ordem original da busca."
+            )
+            st.caption(
+                f"Detalhe técnico: {type(erro).__name__}"
+            )
+            return documentos
+
+        documentos_com_score.append((score, indice, doc))
+
     documentos_ordenados = sorted(
         documentos_com_score,
-        key=lambda x: x[0],
+        key=lambda item: (item[0], -item[1]),
         reverse=True
     )
-    # Retorna apenas os documentos
-    return [doc for _, doc in documentos_ordenados]
+
+    return [doc for _, _, doc in documentos_ordenados]
+
 
 def responder_pergunta(pergunta, vectorstore):
     """
@@ -156,8 +174,14 @@ def responder_pergunta(pergunta, vectorstore):
         model=LLM_MODEL,
         temperature=0,
         timeout=60,
-        max_retries=1
+        max_retries=2
     )
+
+    try:
+        resultado = llm.invoke("Responda apenas: OK")
+        st.success(f"Modelo disponível: {resultado.content}")
+    except Exception as erro:
+        st.error(f"Falha na API: {type(erro).__name__}: {erro}")
 
     # Recuperação inicial (top-k mais alto)
     documentos_recuperados = vectorstore.similarity_search(
