@@ -185,6 +185,34 @@ def responder_pergunta(pergunta, vectorstore):
     resposta = llm.invoke(prompt_final)
 
     return resposta.content, contexto_final
+
+@st.cache_data
+def preparar_chunks():
+    documentos = carregar_documentos()
+    chunks = gerar_chunks(documentos)
+    return enriquecer_chunks(chunks)
+    
+@st.cache_resource
+def criar_vectorstore(_chunks):
+    embeddings = HuggingFaceEmbeddings(
+        model=EMBEDDING_MODEL
+    )
+
+    if (
+        os.path.isdir(PERSIST_DIRECTORY)
+        and os.listdir(PERSIST_DIRECTORY)
+    ):
+        return Chroma(
+            persist_directory=PERSIST_DIRECTORY,
+            embedding_function=embeddings
+        )
+
+    return Chroma.from_documents(
+        documents=_chunks,
+        embedding=embeddings,
+        persist_directory=PERSIST_DIRECTORY
+    )
+
     
 ###############################################################
 ################ Inicialização da aplicação  ##################
