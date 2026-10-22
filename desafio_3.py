@@ -107,7 +107,6 @@ def criar_vectorstore(_chunks):
     )
     return vectorstore
 
-
 def rerank_documentos(pergunta, documentos, llm):
     """
     Reordena os documentos usando o LLM.
@@ -116,7 +115,28 @@ def rerank_documentos(pergunta, documentos, llm):
     """
     prompt_rerank = PromptTemplate(
         input_variables=["pergunta", "texto"],
-        template="""...
+        template="""
+        Você é um avaliador de relevância de documentos.
+
+        Sua tarefa é avaliar o quanto o trecho abaixo ajuda
+        a responder à pergunta do usuário.
+
+        Pergunta:
+        {pergunta}
+
+        Trecho do documento:
+        {texto}
+
+        Atribua uma nota de 0 a 10:
+        - 0: completamente irrelevante;
+        - 5: parcialmente relevante;
+        - 10: responde diretamente à pergunta.
+
+        Considere o conteúdo do trecho, e não apenas
+        a presença de palavras semelhantes.
+
+        Responda exclusivamente com um número inteiro
+        entre 0 e 10.
         """
     )
 
@@ -204,7 +224,27 @@ def responder_pergunta(pergunta, vectorstore):
         [doc.page_content for doc in contexto_final]
     )
 
-    prompt_final = f"""..."""
+    prompt_final = f"""
+    Você é um assistente de Recursos Humanos.
+
+    Responda à pergunta do usuário usando exclusivamente
+    as informações presentes no contexto abaixo.
+
+    Se o contexto não contiver informações suficientes,
+    informe que não foi possível encontrar a resposta
+    nos documentos disponíveis.
+
+    Não responda apenas com uma saudação genérica.
+    Cite o documento e a página utilizados quando possível.
+
+    CONTEXTO:
+    {contexto_texto}
+
+    PERGUNTA:
+    {pergunta}
+
+    RESPOSTA:
+    """
 
     resposta = llm.invoke(prompt_final)
 
