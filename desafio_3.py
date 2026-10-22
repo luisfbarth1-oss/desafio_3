@@ -187,24 +187,30 @@ def responder_pergunta(pergunta, vectorstore):
     return resposta.content, contexto_final
     
 ###############################################################
-########### TESTE DE INICIALIZAÇÃO DO STREAMLIT ###############
+################ Inicialização da aplicação  ##################
 ###############################################################
-if "vectorstore" not in st.session_state:
-    st.session_state.vectorstore = criar_vectorstore(chunks)
+chunks = preparar_chunks()
+vectorstore = criar_vectorstore(chunks)
+st.session_state.vectorstore = vectorstore
     
-st.title("Agente de RH — Diagnóstico")
-st.caption("Esclareça suas dúvidas sobre a empresa")
 
-# Inicializa o histórico
+###############################################################
+#################### INTERFACE DO CHAT ########################
+###############################################################
+
+st.title("Agente de RH — Diagnóstico")
+st.caption("Esclareça suas dúvidas sobre as políticas da empresa.")
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    
-# Exibe as mensagens anteriores
+
+# Exibe o histórico
 for mensagem in st.session_state.messages:
     with st.chat_message(mensagem["role"]):
         st.markdown(mensagem["content"])
 
         fontes = mensagem.get("fontes", [])
+
         if fontes:
             with st.expander("Documentos utilizados"):
                 for i, fonte in enumerate(fontes, start=1):
@@ -217,11 +223,10 @@ for mensagem in st.session_state.messages:
                     st.write(fonte["conteudo"])
                     st.divider()
 
-# Campo de entrada do chat
-pergunta = st.chat_input("Digite sua pergunta...")
+# Entrada de mensagem
+pergunta = st.chat_input("Digite sua pergunta sobre RH...")
 
 if pergunta:
-    # Exibe a mensagem do usuário
     st.session_state.messages.append({
         "role": "user",
         "content": pergunta
@@ -230,51 +235,53 @@ if pergunta:
     with st.chat_message("user"):
         st.markdown(pergunta)
 
-    # Verifica se o banco vetorial está disponível
-    if "vectorstore" not in st.session_state:
-        st.error("Carregue e processe os documentos primeiro.")
-    else:
+    try:
         with st.chat_message("assistant"):
-            try:
-                with st.spinner(
-                    "Consultando documentos e gerando resposta..."
-                ):
-                   resposta, contexto_final = responder_pergunta(
-                       pergunta,
-                       st.session_state.vectorstore
-                   )
+            with st.spinner(
+                "Consultando documentos e gerando resposta..."
+            ):
+                resposta, contexto_final = responder_pergunta(
+                    pergunta,
+                    st.session_state.vectorstore
+                )
 
- # Converte os documentos para dados simples
-                fontes = []
+            st.markdown(resposta)
 
-                for doc in contexto_final:
-                    fontes.append({
-                        "origem": doc.metadata.get(
-                            "source", "Não identificada"
-                        ),
-                        "pagina": doc.metadata.get("page"),
-                        "conteudo": doc.page_content[:500]
-                    })
+            # Prepara fontes simples para o histórico
+            fontes = []
 
-                st.markdown(resposta)
-
-                with st.expander("Documentos utilizados"):
-                    for i, fonte in enumerate(fontes, start=1):
-                        st.markdown(f"**Documento {i}**")
-                        st.write(f"Origem: {fonte['origem']}")
-
-                        if fonte["pagina"] is not None:
-                            st.write(f"Página: {fonte['pagina'] + 1}")
-
-                        st.write(fonte["conteudo"])
-                        st.divider()
-                        
- # Armazena resposta e fontes
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": resposta,
-                    "fontes": fontes
+            for doc in contexto_final:
+                fontes.append({
+                    "origem": doc.metadata.get(
+                        "documento",
+                        doc.metadata.get("source", "Não identificada")
+                    ),
+                    "pagina": doc.metadata.get("page"),
+                    "conteudo": doc.page_content[:500]
                 })
 
-            except Exception as erro:
-                st.error(f"Erro ao consultar o RAG: {erro}")
+            with st.expander("Documentos utilizados"):
+                for i, fonte in enumerate(fontes, start=1):
+                    st.markdown(f"**Documento {i}**")
+                    st.write(f"Origem: {fonte['origem']}")
+
+                    if fonte["pagina"] is not None:
+                        st.write(f"Página: {fonte['pagina'] + 1}")
+
+                    st.write(fonte["conteudo"])
+                    st.divider()
+
+        # Salva a resposta somente após o processamento bem-sucedido
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": resposta,
+            "fontes": fontes
+        })
+
+    except Exception as erro:
+        st.error(
+            "Não foi possível responder à pergunta. "
+            "Verifique os logs para mais detalhes."
+        )
+        st.exception(erro)
+
